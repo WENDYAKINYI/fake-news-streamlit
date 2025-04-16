@@ -22,18 +22,20 @@ if input_choice == "Text":
     text_input = st.text_area("Paste article text:", height=200)
 
 # URL input option
-if input_choice == "URL":
+elif input_choice == "URL":
     url_input = st.text_input("Paste article URL here:")
     if url_input:
         try:
             article = Article(url_input)
             article.download()
             article.parse()
+            if not article.text.strip():
+                raise ValueError("No article text found.")
             text_input = article.text
-            st.success("Article extracted successfully!")
+            st.success("✅ Article extracted successfully!")
             st.text_area("Extracted article text:", text_input, height=200)
-        except:
-            st.error("Failed to extract article from URL. Please try another.")
+        except Exception as e:
+            st.error(f"❌ Failed to extract article: {str(e)}")
 
 # Prediction
 if st.button("Check if it's Fake or Real"):
