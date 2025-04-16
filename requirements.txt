@@ -3,4 +3,5 @@ scikit-learn
 pandas
 joblib
 newspaper3k
-lxml
+lxml-html-clean
+
