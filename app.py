@@ -16,12 +16,35 @@ st.set_page_config(
 )
 
 # Header
+# Replace your current header with this more modern version
 st.markdown("""
-    <div style="background-color:#002B5B;padding:15px;border-radius:10px;margin-bottom:20px;">
-        <h1 style="color:white;text-align:center;font-family:Helvetica;">
-            🧠 Fake News Detector
-        </h1>
-        <p style="color:white;text-align:center;">Paste an article or URL to check if it's real or fake.</p>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+        .main-header {
+            background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .main-header h1 {
+            color: white;
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .main-header p {
+            color: rgba(255,255,255,0.9);
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+        }
+    </style>
+    <div class="main-header">
+        <h1>🧠 AI-Powered Fake News Detector</h1>
+        <p>Analyze news articles for authenticity with our advanced detection system</p>
     </div>
 """, unsafe_allow_html=True)
 
