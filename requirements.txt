@@ -4,4 +4,6 @@ pandas
 joblib
 newspaper3k
 lxml-html-clean
+beautifulsoup4
+requests
 
