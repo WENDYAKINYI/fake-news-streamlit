@@ -66,7 +66,7 @@ with tab1:
 
 with tab2:
     url_input = st.text_input(
-        "Enter news article URL:",
+       "Enter news article URL:",
         placeholder="https://example.com/news-article",
         help="We'll extract the text automatically from most news websites"
     )
