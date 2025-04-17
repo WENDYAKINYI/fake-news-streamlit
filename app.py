@@ -53,14 +53,31 @@ with st.sidebar:
     st.markdown("**Theme:** Fake vs Real News")
     st.markdown("**Stack:** Streamlit, newspaper3k, BeautifulSoup, scikit-learn")
 
-# Input method
-st.subheader("Select Input Method:")
-input_choice = st.radio("Choose how to enter news:", ["Paste Text", "Paste URL"])
-text_input = ""
+# Enhanced input section with tabs instead of radio buttons
+tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
 
-# Text Option
-if input_choice == "Paste Text":
-    text_input = st.text_area("📄 Paste article text here:", height=200)
+with tab1:
+    text_input = st.text_area(
+        "Paste your article content here:",
+        height=250,
+        placeholder="Copy and paste the full text of the news article you want to analyze...",
+        help="For best results, paste the complete article text including multiple paragraphs"
+    )
+
+with tab2:
+    url_input = st.text_input(
+        "Enter news article URL:",
+        placeholder="https://example.com/news-article",
+        help="We'll extract the text automatically from most news websites"
+    )
+    
+    if url_input:
+        with st.status("🔄 Processing URL...", expanded=True) as status:
+            try:
+                # Your existing URL processing code here
+                status.update(label="✅ Successfully extracted article!", state="complete")
+            except Exception as e:
+                status.update(label=f"❌ Error processing URL: {str(e)}", state="error")
 
 # URL Option with fallback to BeautifulSoup
 elif input_choice == "Paste URL":
