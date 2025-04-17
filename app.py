@@ -27,7 +27,6 @@ st.markdown("""
 
 # Sidebar
 with st.sidebar:
-    st.image("https://i.imgur.com/jNNT4LE.png", width=180)
     st.markdown("**Theme:** Fake vs Real News")
     st.markdown("**Stack:** Streamlit, newspaper3k, BeautifulSoup, scikit-learn")
 
