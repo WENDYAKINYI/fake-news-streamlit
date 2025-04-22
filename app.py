@@ -5,8 +5,9 @@ from bs4 import BeautifulSoup
 import requests
 
 # Load model and vectorizer
-model = joblib.load("model.pkl")
-vectorizer = joblib.load("vectorizer.pkl")
+model = TFBertForSequenceClassification.from_pretrained("bert-model")
+tokenizer = BertTokenizer.from_pretrained("bert-model")
+
 
 # Page config
 st.set_page_config(
@@ -124,39 +125,23 @@ with tab2:
                     st.error(f"❌ Failed to extract using fallback. {e2}")
 
 # Prediction section
-if st.button("🔍 Analyze Article", use_container_width=True, type="primary"):
+if st.button("🔍 Analyze"):
     if not text_input.strip():
         st.warning("Please enter some article text first.")
     else:
-        with st.spinner("🧠 Analyzing content with AI..."):
-            vect_text = vectorizer.transform([text_input])
-            prediction = model.predict(vect_text)[0]
-            prob = model.predict_proba(vect_text)[0]
+        with st.spinner("🧠 Analyzing..."):
+            prediction, prob = classify_bert(text_input)
 
-            st.divider()
-            
-            # Results container
-            with st.container():
-                st.subheader("Analysis Results")
-                
-                # Visual indicator
-                if prediction == 1:
-                    col1, col2 = st.columns([1, 4])
-                    with col1:
-                        st.success("✅")
-                    with col2:
-                        st.markdown("### This article appears to be **RELIABLE**")
-                else:
-                    col1, col2 = st.columns([1, 4])
-                    with col1:
-                        st.error("⚠️")
-                    with col2:
-                        st.markdown("### This article contains **SUSPICIOUS CONTENT**")
-                
-                # Confidence meter
-                st.markdown(f"**Confidence Level:** {round(max(prob) * 100, 2)}%")
-                st.progress(
-                    int(max(prob) * 100),
+            st.markdown("---")
+            st.subheader("🧾 Prediction Results")
+
+            if prediction == 1:
+                st.success("✅ **REAL NEWS** — This appears trustworthy.")
+            else:
+                st.error("🚨 **FAKE NEWS DETECTED** — Be cautious sharing this.")
+
+            st.markdown(f"**Confidence:** {round(max(prob) * 100, 2)}%")
+            st.progress(int(max(prob) * 100)),
                     text=f"{'High' if max(prob) > 0.7 else 'Medium' if max(prob) > 0.5 else 'Low'} confidence"
                 )
                 
