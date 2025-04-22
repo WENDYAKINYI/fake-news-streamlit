@@ -6,4 +6,6 @@ newspaper3k
 lxml-html-clean
 beautifulsoup4
 requests
-
+transformers
+tensorflow
+datasets
