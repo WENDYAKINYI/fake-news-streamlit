@@ -183,5 +183,5 @@ if st.button("🔍 Analyze"):
             with c2:
                 st.link_button("🔍 Fact-Check", "https://www.factcheck.org/")
             with c3:
-                st.link_button("📚 Learn More", "https://medialiteracynow.org/")
+                st.link_button("📚 Learn More", "https://www.snopes.com/")
 
