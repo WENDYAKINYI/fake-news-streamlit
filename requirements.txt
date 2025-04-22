@@ -9,4 +9,4 @@ requests
 transformers
 tensorflow
 datasets
-pytorch
+tf_keras
