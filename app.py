@@ -1,22 +1,31 @@
 import streamlit as st
-import joblib
 from newspaper import Article, Config
 from bs4 import BeautifulSoup
 import requests
+from transformers import BertTokenizer, TFBertForSequenceClassification
+import tensorflow as tf
 
-# Load model and vectorizer
-model = TFBertForSequenceClassification.from_pretrained("bert-model")
-tokenizer = BertTokenizer.from_pretrained("bert-model")
+# Load model and tokenizer
+@st.cache_resource
+def load_model():
+    model = TFBertForSequenceClassification.from_pretrained("weakyy/fake-news-bert-wendy")
+    tokenizer = BertTokenizer.from_pretrained("weakyy/fake-news-bert-wendy")
+    return model, tokenizer
 
+model, tokenizer = load_model()
 
-# Page config
-st.set_page_config(
-    page_title="Fake News Detector",
-    page_icon="📰",
-    layout="centered"
-)
+# Classify text using BERT
+def classify_bert(text):
+    inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True, max_length=512)
+    outputs = model(inputs)
+    probs = tf.nn.softmax(outputs.logits, axis=1).numpy()[0]
+    pred = probs.argmax()
+    return pred, probs
 
-# Modern Header
+# Set page config
+st.set_page_config(page_title="Fake News Detector", page_icon="📰", layout="centered")
+
+# Stylish Header
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
@@ -48,7 +57,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Sidebar with information
+# Sidebar Info
 with st.sidebar:
     with st.container(border=True):
         st.markdown("**About This Tool**")
@@ -71,10 +80,11 @@ with st.sidebar:
     st.divider()
     st.caption("Model version: 2.1.0 | Last updated: June 2024")
 
-# Input section with tabs
+# Tabs for input method
 tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
-text_input = ""  # Initialize variable
+text_input = ""
 
+# Tab 1: Paste Text
 with tab1:
     text_input = st.text_area(
         "Paste your article content here:",
@@ -83,6 +93,7 @@ with tab1:
         help="For best results, paste the complete article text including multiple paragraphs"
     )
 
+# Tab 2: Enter URL
 with tab2:
     url_input = st.text_input(
         "Enter news article URL:",
@@ -124,13 +135,19 @@ with tab2:
                 except Exception as e2:
                     st.error(f"❌ Failed to extract using fallback. {e2}")
 
-# Prediction section
+# Prediction Output
 if st.button("🔍 Analyze"):
     if not text_input.strip():
         st.warning("Please enter some article text first.")
     else:
         with st.spinner("🧠 Analyzing..."):
             prediction, prob = classify_bert(text_input)
+            confidence = round(max(prob) * 100, 2)
+            confidence_label = (
+                "🟢 High confidence" if confidence > 70 else 
+                "🟡 Medium confidence" if confidence > 50 else 
+                "🔴 Low confidence"
+            )
 
             st.markdown("---")
             st.subheader("🧾 Prediction Results")
@@ -140,34 +157,31 @@ if st.button("🔍 Analyze"):
             else:
                 st.error("🚨 **FAKE NEWS DETECTED** — Be cautious sharing this.")
 
-            st.markdown(f"**Confidence:** {round(max(prob) * 100, 2)}%")
-            st.progress(int(max(prob) * 100)),
-                    text=f"{'High' if max(prob) > 0.7 else 'Medium' if max(prob) > 0.5 else 'Low'} confidence"
-                )
-                
-                # Explanation section
-                with st.expander("ℹ️ What does this mean?"):
-                    if prediction == 1:
-                        st.markdown("""
-                        Our analysis suggests this content is likely trustworthy because:
-                        - The writing style matches verified news sources
-                        - Contains balanced perspectives
-                        - Shows characteristics of factual reporting
-                        """)
-                    else:
-                        st.markdown("""
-                        This content shows signs that may indicate misinformation:
-                        - Sensational or exaggerated language detected
-                        - Lacks credible sources or references
-                        - Shows bias patterns common in fake news
-                        """)
-                
-                # Action buttons
-                st.markdown("### Next Steps")
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.button("📰 Analyze Another", help="Check a different article")
-                with c2:
-                    st.link_button("🔍 Fact-Check", "https://www.factcheck.org/")
-                with c3:
-                    st.link_button("📚 Learn More", "https://medialiteracynow.org/")
+            st.markdown(f"**Confidence Score:** {confidence}% ({confidence_label})")
+            st.progress(int(confidence))
+
+            with st.expander("ℹ️ What does this mean?"):
+                if prediction == 1:
+                    st.markdown("""
+                    Our analysis suggests this content is likely trustworthy because:
+                    - The writing style matches verified news sources
+                    - Contains balanced perspectives
+                    - Shows characteristics of factual reporting
+                    """)
+                else:
+                    st.markdown("""
+                    This content shows signs that may indicate misinformation:
+                    - Sensational or exaggerated language detected
+                    - Lacks credible sources or references
+                    - Shows bias patterns common in fake news
+                    """)
+
+            st.markdown("### Next Steps")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.button("📰 Analyze Another", help="Check a different article")
+            with c2:
+                st.link_button("🔍 Fact-Check", "https://www.factcheck.org/")
+            with c3:
+                st.link_button("📚 Learn More", "https://medialiteracynow.org/")
+
