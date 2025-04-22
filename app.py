@@ -1,4 +1,6 @@
 import streamlit as st
+# Set page config
+st.set_page_config(page_title="Fake News Detector", page_icon="📰", layout="centered")
 from newspaper import Article, Config
 from bs4 import BeautifulSoup
 import requests
@@ -21,9 +23,6 @@ def classify_bert(text):
     probs = tf.nn.softmax(outputs.logits, axis=1).numpy()[0]
     pred = probs.argmax()
     return pred, probs
-
-# Set page config
-st.set_page_config(page_title="Fake News Detector", page_icon="📰", layout="centered")
 
 # Stylish Header
 st.markdown("""
