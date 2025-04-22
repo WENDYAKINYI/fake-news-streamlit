@@ -142,6 +142,7 @@ if st.button("🔍 Analyze"):
         with st.spinner("🧠 Analyzing..."):
             prediction, prob = classify_bert(text_input)
             confidence = round(max(prob) * 100, 2)
+            confidence_rounded = round(confidence, 2)
             confidence_label = (
                 "🟢 High confidence" if confidence > 70 else 
                 "🟡 Medium confidence" if confidence > 50 else 
@@ -156,7 +157,7 @@ if st.button("🔍 Analyze"):
             else:
                 st.error("🚨 **FAKE NEWS DETECTED** — Be cautious sharing this.")
 
-            st.markdown(f"**Confidence Score:** {confidence}% ({confidence_label})")
+            st.markdown(f"**Confidence Score:** {confidence_rounded:.2f}% ({confidence_label})")
             st.progress(int(confidence))
 
             with st.expander("ℹ️ What does this mean?"):
