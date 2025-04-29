@@ -8,7 +8,7 @@ from sklearn.linear_model import LogisticRegression
 
 # ====================== CONFIGURATION ======================
 TRUSTED_DOMAINS = [
-    'bbc.com', 'cnn.com', 'reuters.com', 'apnews.com', 'nytimes.com',
+    'bbc.com','cnn.com', 'reuters.com', 'apnews.com', 'nytimes.com',
     'washingtonpost.com', 'theguardian.com', 'nature.com',
     'science.org', 'who.int', 'nih.gov'
 ]
@@ -67,8 +67,11 @@ def load_model():
     try:
         model = joblib.load("logistic_model.pkl")
         vectorizer = joblib.load("tfidf_vectorizer.pkl")
+        st.success("Loaded your trained model")
         return model, vectorizer
     except Exception as e:
+        st.warning(f"Model loading failed: {str(e)}. Using fallback.")
+        
         # Create minimal fallback model
         from sklearn.pipeline import make_pipeline
         model = make_pipeline(
@@ -96,138 +99,145 @@ def classify_content(text):
 
 # ====================== STREAMLIT UI ======================
 st.set_page_config(
-    page_title="Fake News Detector",
-    page_icon="📰",
-    layout="centered"
+    page_title="Universal News Verifier",
+    page_icon="🔍",
+    layout="centered",
+    initial_sidebar_state="expanded"
 )
 
-# Your favorite blue header
+# Custom CSS
 st.markdown("""
-    <div style="background-color:#002B5B;padding:15px;border-radius:10px;margin-bottom:20px;">
-        <h1 style="color:white;text-align:center;font-family:Helvetica;">
-            🧠 Fake News Detector
-        </h1>
-        <p style="color:white;text-align:center;">Paste an article or URL to check if it's real or fake.</p>
-    </div>
+<style>
+    .stTextArea textarea { min-height: 200px; }
+    .stProgress > div > div > div { background-color: #1E90FF; }
+    .st-eb { background-color: #f0f2f6; }
+</style>
 """, unsafe_allow_html=True)
 
-# Improved sidebar from newer version
+# Sidebar
 with st.sidebar:
-    st.markdown("**About This Tool**")
+    st.title("About")
     st.markdown("""
-    - AI/ML Model: Logistic Regression with TF-IDF
-    - Accuracy: 94.7% on test data
-    - Training Data: 44,889 political articles
+    This tool verifies news authenticity using:
+    - **Domain reputation** checks
+    - **Content analysis** (machine learning)
+    - **Multi-source extraction**
     """)
     st.divider()
-    st.caption("Model version: 2.1 | Last updated: June 2024")
+    st.markdown("**Trusted Sources:**")
+    st.caption(", ".join(TRUSTED_DOMAINS[:5]) + "...")
+    st.markdown("**Suspicious Sources:**")
+    st.caption(", ".join(SUSPICIOUS_DOMAINS[:3]) + "...")
+    st.divider()
+    st.caption("Version 2.1 | Last updated: June 2024")
 
-# Tabbed interface from newer version
-tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
-text_input = ""
+# Main UI
+st.title("🔍 Universal News Verifier")
+st.caption("Analyze any news article or text snippet")
+
+# Input options
+tab1, tab2 = st.tabs(["📝 Paste Text", "🔗 Enter URL"])
 
 with tab1:
-    text_input = st.text_area(
-        "Paste your article content here:",
-        height=250,
-        placeholder="Copy and paste the full text of the news article...",
-        help="For best results, paste complete articles with multiple paragraphs"
-    )
+    text_content = st.text_area("Paste article text:", help="Minimum 100 characters for best results")
 
 with tab2:
-    url_input = st.text_input(
-        "Enter news article URL:",
-        placeholder="https://example.com/news-article",
-        help="We'll extract text automatically from most news websites"
-    )
+    url_input = st.text_input("Enter article URL:", placeholder="https://example.com/news-article")
     if url_input:
-        with st.spinner("🔄 Processing URL..."):
-            # Domain reputation check first
-            domain = url_input.split('/')[2].replace('www.', '').lower()
-            if domain in TRUSTED_DOMAINS:
-                st.success("✅ Trusted news source detected")
-                st.stop()
-            elif domain in SUSPICIOUS_DOMAINS:
-                st.error("🚨 Known unreliable source detected")
-                st.stop()
-                
+        with st.spinner("Extracting article content..."):
             article_text, method = extract_article_content(url_input)
             if article_text:
-                text_input = article_text
-                st.success(f"✅ Successfully extracted article using {method}!")
-                st.text_area("📄 Extracted Article Text:", text_input, height=200)
+                st.success(f"✅ Extracted using {method}")
+                text_content = st.text_area("Extracted Content", article_text, height=250)
             else:
-                st.error("❌ Failed to extract article content")
+                st.error("Failed to extract meaningful content")
 
-# Enhanced prediction section
-if st.button("🔍 Analyze Article", type="primary", use_container_width=True):
-    if not text_input.strip():
-        st.warning("Please enter some article text first.")
-    else:
-        with st.spinner("🧠 Analyzing content..."):
-            prediction, confidence = classify_content(text_input)
-            
-            st.markdown("---")
-            st.subheader("🧾 Prediction Results")
+# Analysis button
+if st.button("Analyze Authenticity", type="primary", use_container_width=True):
+    if not text_content or len(text_content.split()) < 20:
+        st.warning("Please provide sufficient text (at least 20 words)")
+        st.stop()
+    
+    # Domain verification for URLs
+    if 'url_input' in locals() and url_input:
+        domain = url_input.split('/')[2].replace('www.', '').lower()
+        if domain in TRUSTED_DOMAINS:
+            st.success("""
+            ## ✅ Verified Trusted Source
+            *This domain is on our pre-approved list of reliable sources*
+            """)
+            st.stop()
+        elif domain in SUSPICIOUS_DOMAINS:
+            st.error("""
+            ## ❌ Known Unreliable Source
+            *This domain is on our list of frequently misleading sites*
+            """)
+            st.stop()
+    
+    # Content analysis
+    with st.spinner("Analyzing content..."):
+        label, confidence = classify_content(text_content)
+    
+    # Display results
+    st.markdown("---")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        if label == "UNCERTAIN":
+            st.warning(f"## ⚠️ Inconclusive Result")
+        elif label == "REAL":
+            st.success(f"## ✅ Likely Authentic")
+        else:
+            st.error(f"## ❌ Likely Misleading")
+    
+    with col2:
+        st.metric("Confidence", f"{confidence:.0%}")
+        st.progress(confidence)
+    
+    # Explanation
+    with st.expander("Detailed Analysis", expanded=True):
+        if label == "UNCERTAIN":
+            st.markdown("""
+            The model couldn't determine with sufficient confidence because:
+            - The writing style is ambiguous
+            - Contains mixed characteristics
+            - May be on an unfamiliar topic
+            """)
+        elif label == "REAL":
+            st.markdown("""
+            Characteristics of authentic content:
+            - Balanced language
+            - Credible sources cited
+            - Moderate emotional tone
+            """)
+        else:
+            st.markdown("""
+            Warning signs detected:
+            - Sensational/exaggerated language
+            - Lack of verifiable sources
+            - Emotional manipulation cues
+            """)
+        
+        st.markdown("""
+        ### Recommended Actions:
+        1. Check with additional sources below
+        2. Verify author/publisher reputation
+        3. Look for corroborating evidence
+        """)
+    
+    # Verification resources
+    st.markdown("---")
+    st.subheader("🔍 Fact-Checking Resources")
+    cols = st.columns(3)
+    with cols[0]:
+        st.link_button("FactCheck.org", "https://www.factcheck.org/")
+    with cols[1]:
+        st.link_button("Snopes", "https://www.snopes.com/")
+    with cols[2]:
+        st.link_button("Google Fact Check", "https://toolbox.google.com/factcheck/explorer")
 
-            if confidence < 0.65:
-                st.warning(f"⚠️ Uncertain (Confidence: {confidence:.0%})")
-            else:
-                if prediction == "REAL":
-                    st.success(f"✅ REAL NEWS — Confidence: {confidence:.0%}")
-                else:
-                    st.error(f"🚨 FAKE NEWS DETECTED — Confidence: {confidence:.0%}")
-            
-            # Improved confidence visualization
-            st.markdown(f"""
-            <div style="
-                background: #f0f2f6;
-                padding: 0.5rem;
-                border-radius: 8px;
-                margin: 1rem 0;
-            ">
-                <div style="
-                    height: 8px; 
-                    background: linear-gradient(90deg, #1E90FF {confidence*100}%, #eee {confidence*100}%);
-                    margin-top: 0.5rem;
-                "></div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Enhanced explanation
-            with st.expander("ℹ️ Detailed Analysis", expanded=True):
-                if prediction == "REAL":
-                    st.markdown("""
-                    **Characteristics of authentic content:**
-                    - Balanced language with minimal sensationalism
-                    - References to verifiable sources
-                    - Moderate emotional tone
-                    """)
-                else:
-                    st.markdown("""
-                    **Warning signs detected:**
-                    - Emotional/exaggerated language
-                    - Lack of credible references
-                    - Patterns common in misinformation
-                    """)
-                
-                st.markdown("""
-                **Recommended actions:**
-                1. Cross-check with fact-checking resources
-                2. Compare with other reputable sources
-                3. Verify publication date and author
-                """)
-
-            # Fact-checking resources from newer version
-            st.markdown("### 🔍 Verify With Trusted Sources")
-            cols = st.columns(3)
-            with cols[0]:
-                st.link_button("FactCheck.org", "https://www.factcheck.org/")
-            with cols[1]:
-                st.link_button("Snopes", "https://www.snopes.com/")
-            with cols[2]:
-                st.link_button("Google Fact Check", "https://toolbox.google.com/factcheck/explorer")
-
-# Footer note
+# Footer
 st.markdown("---")
-st.caption("Note: This tool provides algorithmic estimates. Always verify important claims through multiple sources.")
+st.caption("""
+*Note: This tool provides algorithmic estimates, not definitive truth. Always use critical thinking.*
+""")
