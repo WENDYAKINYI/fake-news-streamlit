@@ -134,4 +134,4 @@ if st.button("🔍 Analyze"):
             with c2:
                 st.link_button("🕵️ Snopes", "https://www.snopes.com/")
             with c3:
-                st.link_button("🌐 Google Chrome - Return to Web", "https://www.google.com/chrome/")
+                st.link_button("🌐 Return to Web", "https://www.google.com/chrome/")
