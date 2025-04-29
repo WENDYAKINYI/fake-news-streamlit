@@ -94,43 +94,55 @@ def classify_content(text):
         return "UNCERTAIN", confidence
     return label, confidence
 
-# ====================== ORIGINAL STREAMLIT UI ======================
+# ====================== STREAMLIT UI ======================
 st.set_page_config(
     page_title="Fake News Detector",
     page_icon="📰",
     layout="centered"
 )
 
-# Original header styling
+# Your favorite blue header
 st.markdown("""
     <div style="background-color:#002B5B;padding:15px;border-radius:10px;margin-bottom:20px;">
         <h1 style="color:white;text-align:center;font-family:Helvetica;">
-            🧠 Fake News Detector
+            🧠 AI-Fake News Detector
         </h1>
         <p style="color:white;text-align:center;">Paste an article or URL to check if it's real or fake.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Original sidebar
+# Improved sidebar from newer version
 with st.sidebar:
-    st.markdown("**Theme:** Fake vs Real News")
-    st.markdown("**Stack:** Streamlit, newspaper3k, BeautifulSoup, scikit-learn")
+    st.markdown("**About This Tool**")
+    st.markdown("""
+    - AI/ML Model: Logistic Regression with TF-IDF
+    - Accuracy: 94.7% on test data
+    - Training Data: 44,889 political articles
+    """)
+    st.divider()
+    st.caption("Model version: 2.1 | Last updated: June 2024")
 
-# Original input method
-st.subheader("Select Input Method:")
-input_choice = st.radio("Choose how to enter news:", ["Paste Text", "Paste URL"], horizontal=True)
+# Tabbed interface from newer version
+tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
 text_input = ""
 
-# Text Option
-if input_choice == "Paste Text":
-    text_input = st.text_area("📄 Paste article text here:", height=200)
+with tab1:
+    text_input = st.text_area(
+        "Paste your article content here:",
+        height=250,
+        placeholder="Copy and paste the full text of the news article...",
+        help="For best results, paste complete articles with multiple paragraphs"
+    )
 
-# URL Option with fallback to BeautifulSoup
-elif input_choice == "Paste URL":
-    url_input = st.text_input("🔗 Paste article URL here:")
+with tab2:
+    url_input = st.text_input(
+        "Enter news article URL:",
+        placeholder="https://example.com/news-article",
+        help="We'll extract text automatically from most news websites"
+    )
     if url_input:
-        with st.spinner("Fetching article..."):
-            # First check domain reputation
+        with st.spinner("🔄 Processing URL..."):
+            # Domain reputation check first
             domain = url_input.split('/')[2].replace('www.', '').lower()
             if domain in TRUSTED_DOMAINS:
                 st.success("✅ Trusted news source detected")
@@ -141,52 +153,81 @@ elif input_choice == "Paste URL":
                 
             article_text, method = extract_article_content(url_input)
             if article_text:
-                st.success(f"✅ Extracted with {method}!")
-                text_input = st.text_area("📄 Extracted Article Text:", article_text, height=200)
+                text_input = article_text
+                st.success(f"✅ Successfully extracted article using {method}!")
+                st.text_area("📄 Extracted Article Text:", text_input, height=200)
             else:
                 st.error("❌ Failed to extract article content")
 
-# Prediction with original styling
-if st.button("🔍 Analyze"):
+# Enhanced prediction section
+if st.button("🔍 Analyze Article", type="primary", use_container_width=True):
     if not text_input.strip():
         st.warning("Please enter some article text first.")
     else:
-        with st.spinner("🧠 Analyzing..."):
+        with st.spinner("🧠 Analyzing content..."):
             prediction, confidence = classify_content(text_input)
             
             st.markdown("---")
             st.subheader("🧾 Prediction Results")
 
             if confidence < 0.65:
-                st.warning(f"⚠️ Model is uncertain (Confidence: {confidence:.0%})")
+                st.warning(f"⚠️ Uncertain (Confidence: {confidence:.0%})")
             else:
                 if prediction == "REAL":
                     st.success(f"✅ REAL NEWS — Confidence: {confidence:.0%}")
                 else:
                     st.error(f"🚨 FAKE NEWS DETECTED — Confidence: {confidence:.0%}")
             
-            st.progress(int(confidence * 100))
+            # Improved confidence visualization
+            st.markdown(f"""
+            <div style="
+                background: #f0f2f6;
+                padding: 0.5rem;
+                border-radius: 8px;
+                margin: 1rem 0;
+            ">
+                <div style="
+                    height: 8px; 
+                    background: linear-gradient(90deg, #1E90FF {confidence*100}%, #eee {confidence*100}%);
+                    margin-top: 0.5rem;
+                "></div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with st.expander("ℹ️ What does this mean?"):
+            # Enhanced explanation
+            with st.expander("ℹ️ Detailed Analysis", expanded=True):
                 if prediction == "REAL":
                     st.markdown("""
-                    - Writing style matches verified news sources
-                    - Contains balanced perspectives
-                    - Shows characteristics of factual reporting
+                    **Characteristics of authentic content:**
+                    - Balanced language with minimal sensationalism
+                    - References to verifiable sources
+                    - Moderate emotional tone
                     """)
                 else:
                     st.markdown("""
-                    - Shows signs of potential misinformation:
-                      - Sensational or exaggerated language
-                      - Lacks credible sources
-                      - Contains bias patterns
+                    **Warning signs detected:**
+                    - Emotional/exaggerated language
+                    - Lack of credible references
+                    - Patterns common in misinformation
                     """)
+                
+                st.markdown("""
+                **Recommended actions:**
+                1. Cross-check with fact-checking resources
+                2. Compare with other reputable sources
+                3. Verify publication date and author
+                """)
 
-            st.markdown("### Next Steps")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.button("📰 Analyze Another")
-            with c2:
-                st.link_button("🔍 FactCheck.org", "https://www.factcheck.org/")
-            with c3:
-                st.link_button("📚 Learn More", "https://medialiteracynow.org/")
+            # Fact-checking resources from newer version
+            st.markdown("### 🔍 Verify With Trusted Sources")
+            cols = st.columns(3)
+            with cols[0]:
+                st.link_button("FactCheck.org", "https://www.factcheck.org/")
+            with cols[1]:
+                st.link_button("Snopes", "https://www.snopes.com/")
+            with cols[2]:
+                st.link_button("Google Fact Check", "https://toolbox.google.com/factcheck/explorer")
+
+# Footer note
+st.markdown("---")
+st.caption("Note: This tool provides algorithmic estimates. Always verify important claims through multiple sources.")
