@@ -5,6 +5,7 @@ from newspaper import Article, Config
 from bs4 import BeautifulSoup
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+import re
 
 # ====================== CONFIGURATION ======================
 TRUSTED_DOMAINS = [
@@ -20,41 +21,36 @@ SUSPICIOUS_DOMAINS = [
 
 # ====================== CONTENT EXTRACTION ======================
 def extract_article_content(url):
-    """Enhanced content extraction with multiple fallbacks"""
     config = Config()
     config.browser_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     config.request_timeout = 10
-    
-    # Attempt 1: newspaper3k (best for news sites)
+
     try:
         article = Article(url, config=config)
         article.download()
         article.parse()
-        if len(article.text.split()) > 50:  # Minimum 50 words
+        if len(article.text.split()) > 50:
             return article.text, "newspaper3k"
     except Exception as e:
         st.warning(f"Primary extraction failed: {str(e)}")
-    
-    # Attempt 2: BeautifulSoup (fallback)
+
     try:
         headers = {"User-Agent": config.browser_user_agent}
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Try common article containers first
+
         for selector in ['article', 'main', '.article-body', '.post-content']:
             elements = soup.select(selector)
             if elements:
                 text = ' '.join([e.get_text(separator=' ', strip=True) for e in elements])
                 if len(text.split()) > 50:
                     return text, "beautifulsoup (article tag)"
-        
-        # Fallback to paragraph collection
+
         paragraphs = soup.find_all('p')
         text = ' '.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
         if len(text.split()) > 50:
             return text, "beautifulsoup (paragraphs)"
-        
+
         raise Exception("Insufficient text extracted")
     except Exception as e:
         st.error(f"Fallback extraction failed: {str(e)}")
@@ -63,13 +59,11 @@ def extract_article_content(url):
 # ====================== MODEL HANDLING ======================
 @st.cache_resource
 def load_model():
-    """Load or create model with proper error handling"""
     try:
         model = joblib.load("logistic_model.pkl")
         vectorizer = joblib.load("tfidf_vectorizer.pkl")
         return model, vectorizer
     except Exception as e:
-        # Create minimal fallback model
         from sklearn.pipeline import make_pipeline
         model = make_pipeline(
             TfidfVectorizer(max_features=5000),
@@ -78,148 +72,121 @@ def load_model():
         return model, None
 
 def classify_content(text):
-    """Classify text with confidence scoring"""
     model, vectorizer = load_model()
-    
-    if vectorizer:  # Your custom model
+
+    # Basic heuristic: flag short toxic rants immediately
+    if len(text.split()) < 50 and bool(re.search(r"scam|fake|fraud|lie|hoax|ego|rant|wasting", text.lower())):
+        return "FAKE", 0.9
+
+    if vectorizer:
         features = vectorizer.transform([text])
-    else:  # Fallback model
+    else:
         features = model.named_steps['tfidfvectorizer'].transform([text])
-    
+
     proba = model.predict_proba(features)[0]
     confidence = max(proba)
     label = "REAL" if proba[0] > proba[1] else "FAKE"
-    
+
     if confidence < 0.6:
         return "UNCERTAIN", confidence
     return label, confidence
 
 # ====================== STREAMLIT UI ======================
 st.set_page_config(
-    page_title="Fake News Detector",
+    page_title="📰 Fake News Detector | AI-Powered",
     page_icon="📰",
     layout="centered"
 )
 
-# Your favorite blue header
 st.markdown("""
-    <div style="background-color:#002B5B;padding:15px;border-radius:10px;margin-bottom:20px;">
-        <h1 style="color:white;text-align:center;font-family:Helvetica;">
-            🧠 AI-Fake News Detector
-        </h1>
-        <p style="color:white;text-align:center;">Paste an article or URL to check if it's real or fake.</p>
+    <div style="background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <h1 style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:2.8rem;margin-bottom:0.5rem;">🧠 AI-Powered Fake News Detector</h1>
+        <p style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-size:1.1rem;">Fight misinformation. Check articles instantly with AI-powered verification.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Improved sidebar from newer version
 with st.sidebar:
-    st.markdown("**About This Tool**")
+    st.markdown("### 🤖 About This AI")
     st.markdown("""
-    - AI/ML Model: Logistic Regression with TF-IDF
-    - Accuracy: 94.7% on test data
-    - Training Data: 44,889 political articles
+    - Logistic Regression + TF-IDF
+    - Enhanced heuristic toxicity detection
+    - Confidence-based warnings
+    - Multiple fallback extraction methods
     """)
     st.divider()
-    st.caption("Model version: 2.1 | Last updated: June 2024")
+    st.caption("🚀 Model version: 2.2 | June 2024")
 
-# Tabbed interface from newer version
+# --- Tabs for Input ---
 tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
 text_input = ""
 
 with tab1:
     text_input = st.text_area(
-        "Paste your article content here:",
-        height=250,
-        placeholder="Copy and paste the full text of the news article...",
-        help="For best results, paste complete articles with multiple paragraphs"
+        "Paste your article text here:",
+        height=300,
+        placeholder="Copy and paste the full news article OR a suspicious paragraph...",
     )
 
 with tab2:
     url_input = st.text_input(
-        "Enter news article URL:",
-        placeholder="https://example.com/news-article",
-        help="We'll extract text automatically from most news websites"
+        "Enter a news article URL:",
+        placeholder="https://www.example.com/news/latest..."
     )
     if url_input:
-        with st.spinner("🔄 Processing URL..."):
-            # Domain reputation check first
+        with st.spinner("🔄 Extracting article..."):
             domain = url_input.split('/')[2].replace('www.', '').lower()
             if domain in TRUSTED_DOMAINS:
-                st.success("✅ Trusted news source detected")
+                st.success("✅ Trusted Source")
                 st.stop()
             elif domain in SUSPICIOUS_DOMAINS:
-                st.error("🚨 Known unreliable source detected")
+                st.error("🚨 Known suspicious domain!")
                 st.stop()
-                
             article_text, method = extract_article_content(url_input)
             if article_text:
                 text_input = article_text
-                st.success(f"✅ Successfully extracted article using {method}!")
-                st.text_area("📄 Extracted Article Text:", text_input, height=200)
+                st.success(f"✅ Text extracted with {method}!")
+                st.text_area("📄 Article Extracted:", text_input, height=250)
             else:
-                st.error("❌ Failed to extract article content")
+                st.error("❌ Failed to extract article text.")
 
-# Enhanced prediction section
-if st.button("🔍 Analyze Article", type="primary", use_container_width=True):
+# --- Prediction ---
+if st.button("🔍 Analyze Content", type="primary", use_container_width=True):
     if not text_input.strip():
-        st.warning("Please enter some article text first.")
+        st.warning("Please paste some article text first.")
     else:
-        with st.spinner("🧠 Analyzing content..."):
+        with st.spinner("🧠 Running analysis..."):
             prediction, confidence = classify_content(text_input)
-            
             st.markdown("---")
-            st.subheader("🧾 Prediction Results")
+            st.subheader("🧾 Results Summary")
 
-            if confidence < 0.65:
-                st.warning(f"⚠️ Uncertain (Confidence: {confidence:.0%})")
+            if prediction == "UNCERTAIN":
+                st.warning(f"⚠️ Model Uncertain — Confidence: {confidence:.0%}")
+            elif prediction == "REAL":
+                st.success(f"✅ Classified as REAL NEWS — Confidence: {confidence:.0%}")
             else:
-                if prediction == "REAL":
-                    st.success(f"✅ REAL NEWS — Confidence: {confidence:.0%}")
-                else:
-                    st.error(f"🚨 FAKE NEWS DETECTED — Confidence: {confidence:.0%}")
-            
-            # Improved confidence visualization
+                st.error(f"🚨 Classified as FAKE NEWS — Confidence: {confidence:.0%}")
+
             st.markdown(f"""
-            <div style="
-                background: #f0f2f6;
-                padding: 0.5rem;
-                border-radius: 8px;
-                margin: 1rem 0;
-            ">
-                <div style="
-                    height: 8px; 
-                    background: linear-gradient(90deg, #1E90FF {confidence*100}%, #eee {confidence*100}%);
-                    margin-top: 0.5rem;
-                "></div>
+            <div style="background: #f0f2f6; padding: 0.5rem; border-radius: 8px; margin: 1rem 0;">
+                <div style="height: 8px; background: linear-gradient(90deg, #1E90FF {confidence*100}%, #eee {confidence*100}%);"></div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Enhanced explanation
-            with st.expander("ℹ️ Detailed Analysis", expanded=True):
+            with st.expander("ℹ️ How the analysis works"):
                 if prediction == "REAL":
                     st.markdown("""
-                    **Characteristics of authentic content:**
-                    - Balanced language with minimal sensationalism
-                    - References to verifiable sources
-                    - Moderate emotional tone
+                    - Balanced tone and credible writing patterns
+                    - Matches reputable sources
+                    - Minimal emotional triggers detected
                     """)
                 else:
                     st.markdown("""
-                    **Warning signs detected:**
-                    - Emotional/exaggerated language
-                    - Lack of credible references
-                    - Patterns common in misinformation
+                    - Emotional, biased or exaggerated language detected
+                    - Common patterns found in misinformation
+                    - Lacks credible sourcing
                     """)
-                
-                st.markdown("""
-                **Recommended actions:**
-                1. Cross-check with fact-checking resources
-                2. Compare with other reputable sources
-                3. Verify publication date and author
-                """)
 
-            # Fact-checking resources from newer version
-            st.markdown("### 🔍 Verify With Trusted Sources")
+            st.markdown("### 🔗 Further Verification")
             cols = st.columns(3)
             with cols[0]:
                 st.link_button("FactCheck.org", "https://www.factcheck.org/")
@@ -228,6 +195,5 @@ if st.button("🔍 Analyze Article", type="primary", use_container_width=True):
             with cols[2]:
                 st.link_button("Google Fact Check", "https://toolbox.google.com/factcheck/explorer")
 
-# Footer note
 st.markdown("---")
-st.caption("Note: This tool provides algorithmic estimates. Always verify important claims through multiple sources.")
+st.caption("Note: Always cross-verify important news across multiple trusted sources.")
