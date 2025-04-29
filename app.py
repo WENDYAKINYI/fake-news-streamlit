@@ -9,7 +9,7 @@ import re
 
 # ====================== CONFIGURATION ======================
 TRUSTED_DOMAINS = [
-    'bbc.com','cnn.com', 'reuters.com', 'apnews.com', 'nytimes.com',
+    'bbc.com', 'reuters.com', 'apnews.com', 'nytimes.com',
     'washingtonpost.com', 'theguardian.com', 'nature.com',
     'science.org', 'who.int', 'nih.gov'
 ]
@@ -74,7 +74,6 @@ def load_model():
 def classify_content(text):
     model, vectorizer = load_model()
 
-    # Basic heuristic: flag short toxic rants immediately
     if len(text.split()) < 50 and bool(re.search(r"scam|fake|fraud|lie|hoax|ego|rant|wasting", text.lower())):
         return "FAKE", 0.9
 
@@ -100,7 +99,7 @@ st.set_page_config(
 
 st.markdown("""
     <div style="background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-        <h1 style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:2.8rem;margin-bottom:0.5rem;">🧠 AI-Powered Fake News Detector</h1>
+        <h1 style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:2.8rem;margin-bottom:0.5rem;">🧠 Smart Fake News Detector</h1>
         <p style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-size:1.1rem;">Fight misinformation. Check articles instantly with AI-powered verification.</p>
     </div>
 """, unsafe_allow_html=True)
@@ -135,10 +134,7 @@ with tab2:
     if url_input:
         with st.spinner("🔄 Extracting article..."):
             domain = url_input.split('/')[2].replace('www.', '').lower()
-            if domain in TRUSTED_DOMAINS:
-                st.success("✅ Trusted Source")
-                st.stop()
-            elif domain in SUSPICIOUS_DOMAINS:
+            if domain in SUSPICIOUS_DOMAINS:
                 st.error("🚨 Known suspicious domain!")
                 st.stop()
             article_text, method = extract_article_content(url_input)
