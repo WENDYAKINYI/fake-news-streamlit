@@ -99,21 +99,33 @@ st.set_page_config(
 
 st.markdown("""
     <div style="background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-        <h1 style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:2.8rem;margin-bottom:0.5rem;">🧠 Smart Fake News Detector</h1>
-        <p style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-size:1.1rem;">Fight misinformation. Check articles instantly with AI-powered verification.</p>
+        <h1 style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:2.8rem;margin-bottom:0.5rem;">🧠  AI-Powered Fake News Detector</h1>
+        <p style="color:white;text-align:center;font-family:'Poppins',sans-serif;font-size:1.1rem;">Fight misinformation. Analyze news articles for authenticity with our advanced detection system.</p>
     </div>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### 🤖 About This AI")
     st.markdown("""
-    - Logistic Regression + TF-IDF
+    This AI-powered detector analyzes news content for signs of misinformation using:
+    - Machine Learning Models + TF-IDF
+    - Natural Language Processing
     - Enhanced heuristic toxicity detection
     - Confidence-based warnings
+    - Fact-checking patterns
     - Multiple fallback extraction methods
     """)
+
+    with st.container(border=True):
+        st.markdown("**Tips for Best Results**")
+        st.markdown("""
+        - Provide complete articles (300+ words)
+        - Check multiple sources
+        - Be wary of emotional language
+        - Verify publication date
+        """)
     st.divider()
-    st.caption("🚀 Model version: 2.2 | June 2024")
+    st.caption("🚀 Model version: 4.4.0 | Last updated:April 2025")
 
 # --- Tabs for Input ---
 tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
@@ -124,12 +136,14 @@ with tab1:
         "Paste your article text here:",
         height=300,
         placeholder="Copy and paste the full news article OR a suspicious paragraph...",
+        help="For best results, paste the complete article text including multiple paragraphs"
     )
 
 with tab2:
     url_input = st.text_input(
         "Enter a news article URL:",
-        placeholder="https://www.example.com/news/latest..."
+        placeholder="https://www.example.com/news/latest...",
+        help="We'll extract the text automatically from most news websites"
     )
     if url_input:
         with st.spinner("🔄 Extracting article..."):
@@ -168,15 +182,19 @@ if st.button("🔍 Analyze Content", type="primary", use_container_width=True):
             </div>
             """, unsafe_allow_html=True)
 
-            with st.expander("ℹ️ How the analysis works"):
+            with st.expander("ℹ️ What does this mean?"):
                 if prediction == "REAL":
                     st.markdown("""
+                    Our analysis suggests this content is likely trustworthy because:
+                    - The writing style matches verified news sources
+                    - Contains balanced perspectives
+                    - Shows characteristics of factual reporting
                     - Balanced tone and credible writing patterns
-                    - Matches reputable sources
-                    - Minimal emotional triggers detected
+                
                     """)
                 else:
                     st.markdown("""
+                     This content shows signs that may indicate misinformation:
                     - Emotional, biased or exaggerated language detected
                     - Common patterns found in misinformation
                     - Lacks credible sourcing
