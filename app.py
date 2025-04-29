@@ -1,187 +1,137 @@
 import streamlit as st
-# Set page config
-st.set_page_config(page_title="Fake News Detector", page_icon="📰", layout="centered")
+import joblib
 from newspaper import Article, Config
 from bs4 import BeautifulSoup
 import requests
-from transformers import BertTokenizer, TFBertForSequenceClassification
-import tensorflow as tf
 
-# Load model and tokenizer
+# --- Page Config ---
+st.set_page_config(page_title="Fake News Detector", page_icon="📰", layout="centered")
+
+# --- Load Logistic Regression Model and TF-IDF Vectorizer ---
 @st.cache_resource
 def load_model():
-    model = TFBertForSequenceClassification.from_pretrained("weakyy/fake-news-bert-wendy")
-    tokenizer = BertTokenizer.from_pretrained("weakyy/fake-news-bert-wendy")
-    return model, tokenizer
+    model = joblib.load("logistic_model.pkl")
+    vectorizer = joblib.load("tfidf_vectorizer.pkl")
+    return model, vectorizer
 
-model, tokenizer = load_model()
+log_model, tfidf_vectorizer = load_model()
 
-# Classify text using BERT
-def classify_bert(text):
-    inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True, max_length=512)
-    outputs = model(inputs)
-    probs = tf.nn.softmax(outputs.logits, axis=1).numpy()[0]
-    pred = probs.argmax()
-    return pred, probs
+# --- Classify Text Using Logistic Regression ---
+def classify_article(text):
+    vect_text = tfidf_vectorizer.transform([text])
+    prediction = log_model.predict(vect_text)[0]
+    probabilities = log_model.predict_proba(vect_text)[0]
+    return prediction, probabilities
 
-# Stylish Header
+# --- Extract Text from URL ---
+def extract_text_from_url(url):
+    try:
+        config = Config()
+        config.browser_user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        article = Article(url, config=config)
+        article.download()
+        article.parse()
+        if not article.text.strip():
+            raise ValueError("No article text found.")
+        return article.text
+    except Exception:
+        try:
+            headers = {"User-Agent": config.browser_user_agent}
+            res = requests.get(url, headers=headers)
+            soup = BeautifulSoup(res.content, "html.parser")
+            paragraphs = soup.find_all("p")
+            return " ".join(p.get_text() for p in paragraphs)
+        except Exception as e:
+            return None
+
+# --- UI Elements ---
 st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
-        .main-header {
-            background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%);
-            padding: 1.5rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        .main-header h1 {
-            color: white;
-            text-align: center;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-        .main-header p {
-            color: rgba(255,255,255,0.9);
-            text-align: center;
-            font-family: 'Poppins', sans-serif;
-            font-size: 1rem;
-        }
-    </style>
-    <div class="main-header">
-        <h1>🧠 AI-Powered Fake News Detector</h1>
-        <p>Analyze news articles for authenticity with our advanced detection system</p>
+    <div style="background: linear-gradient(135deg, #002B5B 0%, #1A5F7A 100%); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <h1 style="color: white; text-align: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 2.5rem;">🧠 AI-Powered Fake News Detector</h1>
+        <p style="color: rgba(255,255,255,0.9); text-align: center; font-family: 'Poppins', sans-serif; font-size: 1rem;">Analyze news articles for authenticity in real time</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Sidebar Info
 with st.sidebar:
-    with st.container(border=True):
-        st.markdown("**About This Tool**")
-        st.markdown("""
-        This AI-powered detector analyzes news content for signs of misinformation using:
-        - Natural Language Processing
-        - Machine Learning models
-        - Fact-checking patterns
-        """)
-    
-    with st.container(border=True):
-        st.markdown("**Tips for Best Results**")
-        st.markdown("""
-        - Provide complete articles (300+ words)
-        - Check multiple sources
-        - Be wary of emotional language
-        - Verify publication date
-        """)
-    
+    st.markdown("**About This Tool**")
+    st.markdown("""
+    - AI & ML based news authenticity detector
+    - Capable of analyzing pasted text or extracted articles from URLs
+    - Displays model certainty levels
+    """)
     st.divider()
-    st.caption("Model version: 2.1.0 | Last updated: June 2024")
+    st.caption("Model: Logistic Regression + TF-IDF | Updated: June 2024")
 
-# Tabs for input method
+# --- Tabs for Input ---
 tab1, tab2 = st.tabs(["📝 Paste Article Text", "🔗 Enter Article URL"])
 text_input = ""
 
-# Tab 1: Paste Text
+# Tab 1
 with tab1:
-    text_input = st.text_area(
-        "Paste your article content here:",
-        height=250,
-        placeholder="Copy and paste the full text of the news article you want to analyze...",
-        help="For best results, paste the complete article text including multiple paragraphs"
-    )
+    text_input = st.text_area("Paste article text:", height=250)
 
-# Tab 2: Enter URL
+# Tab 2
 with tab2:
-    url_input = st.text_input(
-        "Enter news article URL:",
-        placeholder="https://example.com/news-article",
-        help="We'll extract the text automatically from most news websites"
-    )
-    
+    url_input = st.text_input("Enter article URL:")
     if url_input:
-        with st.status("🔄 Processing URL...", expanded=True) as status:
-            try:
-                config = Config()
-                config.browser_user_agent = (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-                )
-                article = Article(url_input, config=config)
-                article.download()
-                article.parse()
-                if not article.text.strip():
-                    raise ValueError("No article text found.")
-                text_input = article.text
-                status.update(label="✅ Successfully extracted article!", state="complete")
-                st.text_area("📄 Extracted Article Text:", text_input, height=200)
+        with st.spinner("🔄 Extracting article text..."):
+            article_text = extract_text_from_url(url_input)
+            if article_text:
+                text_input = article_text
+                st.success("✅ Successfully extracted article!")
+                st.text_area("Extracted article text:", text_input, height=200)
+            else:
+                st.error("❌ Failed to extract article text from the URL.")
 
-            except Exception as e1:
-                status.update(label=f"⚠ newspaper3k failed: {e1}", state="error")
-                st.info("🔄 Trying fallback method...")
-                try:
-                    headers = {"User-Agent": config.browser_user_agent}
-                    res = requests.get(url_input, headers=headers)
-                    soup = BeautifulSoup(res.content, "html.parser")
-                    paragraphs = soup.find_all("p")
-                    article_text = " ".join(p.get_text() for p in paragraphs)
-                    if not article_text.strip():
-                        raise ValueError("No text found.")
-                    text_input = article_text
-                    st.success("✅ Extracted with BeautifulSoup!")
-                    st.text_area("📄 Extracted Article Text:", text_input, height=200)
-                except Exception as e2:
-                    st.error(f"❌ Failed to extract using fallback. {e2}")
-
-# Prediction Output
+# --- Prediction ---
 if st.button("🔍 Analyze"):
     if not text_input.strip():
-        st.warning("Please enter some article text first.")
+        st.warning("Please enter some article text or URL.")
     else:
-        with st.spinner("🧠 Analyzing..."):
-            prediction, prob = classify_bert(text_input)
-            confidence = round(max(prob) * 100, 2)
-            confidence_rounded = round(confidence, 2)
+        with st.spinner("🧠 Analyzing article authenticity..."):
+            prediction, probabilities = classify_article(text_input)
+            confidence = round(max(probabilities) * 100, 2)
             confidence_label = (
-                "🟢 High confidence" if confidence > 70 else 
-                "🟡 Medium confidence" if confidence > 50 else 
-                "🔴 Low confidence"
+                "🟢 High Confidence" if confidence > 70 else
+                "🟡 Medium Confidence" if confidence > 50 else
+                "🔴 Low Confidence"
             )
 
             st.markdown("---")
             st.subheader("🧾 Prediction Results")
 
-            if prediction == 1:
-                st.success("✅ **REAL NEWS** — This appears trustworthy.")
+            if confidence < 65:
+                st.warning(f"⚠️ Model is uncertain about this article (Confidence: {confidence}%). Please manually fact-check.")
             else:
-                st.error("🚨 **FAKE NEWS DETECTED** — Be cautious sharing this.")
+                if prediction == 1:
+                    st.success(f"✅ REAL NEWS — Confidence: {confidence}% ({confidence_label})")
+                else:
+                    st.error(f"🚨 FAKE NEWS DETECTED — Confidence: {confidence}% ({confidence_label})")
 
-            st.markdown(f"**Confidence Score:** {confidence_rounded:.2f}% ({confidence_label})")
             st.progress(int(confidence))
 
-            with st.expander("ℹ️ What does this mean?"):
+            with st.expander("ℹ️ What Does This Mean?"):
                 if prediction == 1:
                     st.markdown("""
-                    Our analysis suggests this content is likely trustworthy because:
-                    - The writing style matches verified news sources
-                    - Contains balanced perspectives
-                    - Shows characteristics of factual reporting
+                    - Writing style matches verified real news sources.
+                    - Contains balanced and factual reporting patterns.
+                    - Moderate emotional language.
                     """)
                 else:
                     st.markdown("""
-                    This content shows signs that may indicate misinformation:
-                    - Sensational or exaggerated language detected
-                    - Lacks credible sources or references
-                    - Shows bias patterns common in fake news
+                    - Language patterns suggest bias, exaggeration, or misinformation.
+                    - Lacks credible sourcing or shows signs of manipulation.
+                    - Often uses sensational language.
                     """)
 
-            st.markdown("### Next Steps")
+            st.markdown("### Trusted Fact-Checking Resources")
             c1, c2, c3 = st.columns(3)
             with c1:
-                st.button("📰 Analyze Another", help="Check a different article")
+                st.link_button("🔍 FactCheck.org", "https://www.factcheck.org/")
             with c2:
-                st.link_button("🔍 Fact-Check", "https://www.factcheck.org/")
+                st.link_button("🕵️ Snopes", "https://www.snopes.com/")
             with c3:
-                st.link_button("📚 Learn More", "https://www.snopes.com/")
-
+                st.link_button("🌐 Google Chrome - Return to Web", "https://www.google.com/chrome/")
