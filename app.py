@@ -9,7 +9,7 @@ import re
 
 # ====================== CONFIGURATION ======================
 TRUSTED_DOMAINS = [
-    'bbc.com', 'reuters.com', 'apnews.com', 'nytimes.com',
+    'bbc.com', 'cnn.com', 'reuters.com', 'apnews.com', 'nytimes.com',
     'washingtonpost.com', 'theguardian.com', 'nature.com',
     'science.org', 'who.int', 'nih.gov'
 ]
